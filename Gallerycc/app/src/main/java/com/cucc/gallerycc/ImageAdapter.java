@@ -1,6 +1,6 @@
 package com.cucc.gallerycc;
 
-import android.net.Uri;
+import android.content.Intent;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -10,33 +10,27 @@ import android.widget.ImageView;
 
 import com.squareup.picasso.Picasso;
 
-import java.io.File;
 import java.util.List;
 
 public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ViewHolder>{
 
-    protected Uri fullImageUri;
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder {
 
         public ImageView img;
 
         public ViewHolder(View itemView) {
+
             super(itemView);
             img = (ImageView) itemView.findViewById(R.id.imageView1);
-            itemView.setOnClickListener((View.OnClickListener) this);
-        }
-
-        @Override
-        public void onClick(View v) {
-            Log.i("ImgPress","pressed");
 
         }
+
     }
 
-    private List<Uri> images;
+    public List<String> images;
 
-    public ImageAdapter(List<Uri> uris){
+    public ImageAdapter(List<String> uris){
         images = uris;
     }
 
@@ -47,25 +41,30 @@ public class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.ViewHolder>{
     }
 
     @Override
-    public void onBindViewHolder(ImageAdapter.ViewHolder viewHolder, int position){
-        Uri imageUri = images.get(position);
-        //getFullImageUri(imageUri);
-        Log.i("PicassoURI", imageUri.toString());
+    public void onBindViewHolder(final ImageAdapter.ViewHolder viewHolder, final int position){
+
+        Log.i("PicassoURI", images.get(position));
+
         Picasso.get()
-                .load(new File(imageUri.toString()))
+                .load(images.get(position))
                 .placeholder(R.drawable.untitled)
                 .fit()
                 .centerCrop()
                 .into(viewHolder.img);
+
+        viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent( viewHolder.itemView.getContext(), FullImageView.class);
+                intent.putExtra("extra", images.get(position));
+                viewHolder.itemView.getContext().startActivity(intent);
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
         return images.size();
     }
-
-    /*protected void getFullImageUri(Uri u){
-        fullImageUri = u;
-    }*/
 
 }

@@ -1,15 +1,13 @@
 package com.cucc.gallerycc;
 
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.List;
 
 public class Data extends AppCompatActivity {
 
@@ -17,35 +15,26 @@ public class Data extends AppCompatActivity {
 
     private static ArrayList<String> links;
 
-    public Data(Context context){
-        this.context = context;
+    public Data(){
     }
 
-    public void getLinks() throws IOException {
+    public void getLinks(String path) throws IOException {
 
         links = new ArrayList<String>();
-        String link;
 
-        InputStream is = context.getAssets().open("links.txt");
-        int size = is.available();
-        byte[] buffer = new byte[size];
+        BufferedReader br = new BufferedReader(new FileReader(path));
 
-        is.read(buffer);
-        is.close();
+        String msg = br.readLine();
 
-        link = new String(buffer);
-        String[] linkString = link.split("\n");
 
-        for(String s : linkString){
-            links.add(s);
-            Log.i("Link: ", s);
+        while(!(msg == null)){
+            links.add(msg);
+            //Log.i("Link: ", msg);
+            msg = br.readLine();
         }
 
     }
 
-    public static int getLinkSize(){
-        return links.size();
-    }
     public static ArrayList<String> getLinksList(){ return links; }
 
 }

@@ -4,11 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
@@ -19,12 +15,10 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 
 import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -36,10 +30,10 @@ public class MainActivity extends AppCompatActivity {
     private ProgressDialog dialog;
     private Context context = this;
 
-    Data buffer = new Data(this);
+    Data buffer = new Data();
     private static ArrayList<String> links = new ArrayList<>();
     private AsyncTask task = new DownloadImageList();
-    private List<Uri> imagesUri = new ArrayList<>();
+    private List<String> imagesUri = new ArrayList<>();
     protected RecyclerView recyclerView;
 
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
@@ -53,21 +47,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        try {
-            buffer.getLinks();
-            links = buffer.getLinksList();
-        } catch (IOException e) {
-            Log.e("getLinks -> ", e.toString());
-        }
-
         dialog = new ProgressDialog(MainActivity.this);
         dialog.setIndeterminate(false);
         dialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
         dialog.setTitle("Gallery.cc");
-        dialog.setMessage("Downloading images...");
+        dialog.setMessage("Downloading database file...");
         dialog.setCancelable(false);
 
-        task = new DownloadImageList().execute(links);
+        task = new DownloadImageList().execute("https://www.dropbox.com/s/6rzn8e2x51x9qv2/images.txt?dl=1");
 
     }
 
@@ -85,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public class DownloadImageList extends AsyncTask<ArrayList<String>, Integer, List<Bitmap>> {
+    public class DownloadImageList extends AsyncTask<String, Integer, String> {
 
         private URL url;
 
@@ -100,31 +87,44 @@ public class MainActivity extends AppCompatActivity {
 
 
         @Override
-        protected List<Bitmap> doInBackground(ArrayList<String>... lists) {
-            int count = lists.length;
+        protected String doInBackground(String... url) {
+            int count = url.length;
 
             HttpURLConnection connection = null;
-            List<Bitmap> downloadedImages = new ArrayList<>();
+
+            int byteCount;
+            String absolutePathOfFile = "";
 
             for(int i = 0; i < count; i++) {
 
-                int listSize = lists[i].size();
+                URL urlFile = stringToURL(url[0]);
 
-                for (int j = 0; j < listSize; j++) {
-
-                    URL url = stringToURL(lists[i].get(j));
                     try {
 
-                        connection = (HttpURLConnection) url.openConnection();
+                        String root = Environment.getExternalStorageDirectory().toString();
+
+                        connection = (HttpURLConnection) urlFile.openConnection();
                         connection.connect();
 
                         if (connection != null) Log.i("Connection: ", "Connected!");
                         else Log.i("Connection: ", "Not connected!");
 
-                        InputStream is = connection.getInputStream();
-                        BufferedInputStream bufferedInputStream = new BufferedInputStream(is);
-                        Bitmap bmp = BitmapFactory.decodeStream(bufferedInputStream);
-                        downloadedImages.add(bmp);
+                        InputStream is = new BufferedInputStream(urlFile.openStream(), 8192);
+                        OutputStream os = new FileOutputStream(root + "/links.txt");
+                        byte data[] = new byte[1024];
+                        long total = 0;
+
+                        while((byteCount = is.read(data)) != -1){
+                            total += count;
+                            os.write(data, 0, byteCount);
+                        }
+
+                        os.flush();
+                        os.close();
+                        is.close();
+
+                        absolutePathOfFile = root + "/links.txt";
+                        Log.i("path", absolutePathOfFile);
 
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -132,13 +132,11 @@ public class MainActivity extends AppCompatActivity {
                         connection.disconnect();
                     }
 
-                    publishProgress((int) (((j) / (float) listSize) * 100));
-
-                }
+                publishProgress((int) (((i) / (float) count) * 100));
 
             }
 
-            return downloadedImages;
+            return absolutePathOfFile;
         }
 
         protected void onProgressUpdate(Integer...integers){
@@ -146,14 +144,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected void onPostExecute(List<Bitmap> resultImages){
+        protected void onPostExecute(String absolutePath){
 
             dialog.dismiss();
 
-            for(int i=0;i<resultImages.size();i++) {
-                Bitmap bitmap = resultImages.get(i);
-                saveImageToFolder(bitmap, i);
+            Data links = new Data();
+
+            try {
+                links.getLinks(absolutePath);
+                imagesUri = links.getLinksList();
             }
+            catch (IOException e) {}
 
             recyclerView = findViewById(R.id.rvImages);
             GridLayoutManager gridLayoutManager = new GridLayoutManager(context, 3);
@@ -172,26 +173,6 @@ public class MainActivity extends AppCompatActivity {
             }
             return null;
 
-        }
-
-        protected void saveImageToFolder(Bitmap bitmap, int index){
-
-            ContextWrapper contextWrapper = new ContextWrapper(getApplicationContext());
-            File file = Environment.getExternalStorageDirectory();
-            file = new File(file, "Image" + index + ".jpg");
-
-            try {
-                OutputStream stream = null;
-                stream = new FileOutputStream(file);
-                bitmap.compress(Bitmap.CompressFormat.JPEG,100, stream);
-                stream.flush();
-                stream.close();
-            } catch ( IOException e ) {
-                e.printStackTrace();
-            }
-
-            imagesUri.add(Uri.parse(file.getAbsolutePath()));
-            Log.i("Absolute Path", file.getAbsolutePath());
         }
 
     }
